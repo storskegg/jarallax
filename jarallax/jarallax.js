@@ -1,4 +1,18 @@
 /*!
+ * Modified: Liam Conrad (Lemans Corp)
+ * To more easily see the changes made, diff against:
+ *   https://raw.githubusercontent.com/nk-o/jarallax/v1.7.2/jarallax/jarallax.js
+ * Notes: Added new options:
+ *   I. Background image properties
+ *     A. backgroundPosition - CSS property values, default: '50% 50%'
+ *     B. offsetY - distance in pixels, default: 0
+ *        (this allows to account for fixed navbars, etc)
+ *     C: alignToParent - bool; true sets position to absolute,
+ *        false sets position to fixed; default: false
+ *        (improves responsive behavior, and grants flexibility)
+ */
+
+/*!
  * Name    : Just Another Parallax [Jarallax]
  * Version : 1.7.2
  * Author  : _nK https://nkdev.info
@@ -71,7 +85,9 @@
     var isEdge = /Edge\/\d+/.test(navigator.userAgent);
     var isIE11 = /Trident.*rv[ :]*11\./.test(navigator.userAgent);
     var isIE10 = !!Function('/*@cc_on return document.documentMode===10@*/')();
-    var isIElt10 = document.all && !window.atob;
+    // Added double-bar coersion to prevent odd behavior in some non-IE browsers
+    // where isIElt10 was equal to an array of DOM nodes, not a boolean.
+    var isIElt10 = !!document.all && !window.atob;
 
     var wndW;
     var wndH;
@@ -96,25 +112,37 @@
             _this.$item      = item;
 
             _this.defaults   = {
-                type              : 'scroll', // type of parallax: scroll, scale, opacity, scale-opacity, scroll-opacity
-                speed             : 0.5, // supported value from -1 to 2
-                imgSrc            : null,
-                imgWidth          : null,
-                imgHeight         : null,
-                enableTransform   : true,
-                elementInViewport : null,
-                zIndex            : -100,
-                noAndroid         : false,
-                noIos             : true,
+                type               : 'scroll', // type of parallax: scroll, scale, opacity, scale-opacity, scroll-opacity
+                speed              : 0.5, // supported value from -1 to 2
+                imgSrc             : null,
+                imgWidth           : null,
+                imgHeight          : null,
+                enableTransform    : true,
+                elementInViewport  : null,
+                zIndex             : -100,
+                noAndroid          : false,
+                noIos              : true,
+
+                backgroundPosition : '50% 50%',
+                offsetY            : 0,
+                alignToParent      : false,
 
                 // events
-                onScroll          : null, // function(calculations) {}
-                onInit            : null, // function() {}
-                onDestroy         : null, // function() {}
-                onCoverImage      : null  // function() {}
+                onScroll           : null, // function(calculations) {}
+                onInit             : null, // function() {}
+                onDestroy          : null, // function() {}
+                onCoverImage       : null  // function() {}
             };
             dataOptions      = JSON.parse(_this.$item.getAttribute('data-jarallax') || '{}');
-            _this.options    = _this.extend({}, _this.defaults, dataOptions, userOptions);
+            _this.options    = _this.extend(
+                {},
+                _this.defaults,
+                dataOptions,
+                userOptions,
+                {
+                    position: !userOptions.alignToParent ? 'fixed' : 'absolute'
+                }
+            );
 
             // stop init if android or ios
             if(isAndroid && _this.options.noAndroid || isIOs && _this.options.noIos) {
@@ -215,7 +243,7 @@
                 pointerEvents    : 'none'
             },
             imageStyles = {
-                position         : 'fixed'
+                position         : _this.options.position
             };
 
         // container for parallax image
@@ -239,9 +267,11 @@
 
         // use div with background image
         else {
+            var backgroundPosition = _this.options.backgroundPosition;
+
             _this.image.$item = document.createElement('div');
             imageStyles = _this.extend({
-                'background-position' : '50% 50%',
+                'background-position' : backgroundPosition,
                 'background-size'     : '100% auto',
                 'background-repeat'   : 'no-repeat no-repeat',
                 'background-image'    : 'url("' + _this.image.src + '")'
@@ -271,7 +301,9 @@
         }
 
         // parallax image
-        _this.css(_this.image.$item, imageStyles);
+        _this.css(_this.image.$item, _this.extend({}, imageStyles, {
+            'top': _this.options.offsetY-13 + 'px'
+        }));
         _this.image.$container.appendChild(_this.image.$item);
 
         // cover image if width and height is ready
@@ -478,7 +510,8 @@
             width: resultW + 'px',
             height: resultH + 'px',
             marginLeft: resultML + 'px',
-            marginTop: resultMT + 'px'
+            marginTop: '0px'
+            //marginTop: resultMT + 'px'
         });
 
         // call onCoverImage event
@@ -502,9 +535,9 @@
             contT  = rect.top,
             contH  = rect.height,
             styles = {
-                position           : 'absolute',
+                position           : _this.options.position,
                 visibility         : 'visible',
-                backgroundPosition : '50% 50%'
+                backgroundPosition : _this.options.backgroundPosition
             };
 
         // check if in viewport
